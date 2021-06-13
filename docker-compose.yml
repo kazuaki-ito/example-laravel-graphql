@@ -1,0 +1,68 @@
+version: "3"
+services:
+  web:
+    image: nginx:alpine
+    hostname: web
+    ports:
+      - "80:80"
+    links:
+      - app
+    depends_on:
+      - app
+    volumes:
+      - .:/var/www/app
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+  app:
+    environment:
+      - COMPOSER_MEMORY_LIMIT=-1
+    build:
+      context: docker/app/
+      dockerfile: Dockerfile
+    links:
+      - redis
+      - db
+    depends_on:
+      - redis
+      - db
+    hostname: app
+    volumes:
+      - .:/var/www/app
+      - ./.ssh/ssh_host_rsa_key:/root/.ssh/ssh_host_rsa_key
+  echo-server:
+    image: broadcast-echo-server
+    build:
+      context: .
+      dockerfile: docker/echo-server/Dockerfile
+    ports:
+     - "6001:6001"
+    links:
+      - redis
+    depends_on:
+      - redis
+    command: laravel-echo-server start
+    volumes:
+     - ./src:/work:cached
+    working_dir: /work
+  db:
+    build:
+      context: .
+      dockerfile: docker/db/Dockerfile
+    hostname: db
+    volumes:
+      - ./data/db:/var/lib/mysql
+      - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
+      - .:/var/app
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: example
+  redis:
+    image: "redis:6.2-alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - "./data/redis:/data"
+
+
+
